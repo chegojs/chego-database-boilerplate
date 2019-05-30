@@ -1,12 +1,12 @@
 import { JoinType, Union } from '../api/types';
-import { PropertyOrLogicalOperatorScope, QuerySyntaxEnum, Fn, Table, FunctionData, Property, AnyButFunction, SortingData, QuerySyntaxTemplate, IQueryResult } from '@chego/chego-api';
-import { IQueryContext, IQueryContextBuilder, IJoinBuilder } from '../api/interfaces';
+import { PropertyOrLogicalOperatorScope, QuerySyntaxEnum, Fn, Table, FunctionData, Property, AnyButFunction, SortingData, IQueryResult } from '@chego/chego-api';
+import { IQueryContext, IQueryContextBuilder, IJoinBuilder, IConditionsBuilder } from '../api/interfaces';
 import { newQueryContext } from './queryContext';
-import { combineReducers, mergePropertiesWithLogicalAnd, isLogicalOperatorScope, isProperty, newLogicalOperatorScope, isMySQLFunction, isAliasString, newTable, isAlias, newSortingData, parseStringToProperty, newLimit } from '@chego/chego-tools';
+import { combineReducers, mergePropertiesWithLogicalAnd, isLogicalOperatorScope, isProperty, isMySQLFunction, isAliasString, newTable, isAlias, newSortingData, parseStringToProperty, newLimit } from '@chego/chego-tools';
 import { parseStringToSortingOrderEnum } from './utils';
-import { templates } from './templates';
 import { newJoinBuilder } from './joins';
 import { newUnion } from './unions';
+import { newConditionsBuilder } from './conditions';
 
 const isPrimaryCommand = (type: QuerySyntaxEnum) => type === QuerySyntaxEnum.Select
     || type === QuerySyntaxEnum.Update
@@ -67,62 +67,13 @@ const parseStringToSortingData = (defaultTable: Table) => (data: SortingData[], 
     return data;
 }
 
-const isAndOr = (type: QuerySyntaxEnum): boolean => type === QuerySyntaxEnum.And || type === QuerySyntaxEnum.Or;
-
-const useTemplate = (type: QuerySyntaxEnum, property?: Property, ...values: any[]): Fn => {
-    const template = templates.get(type);
-    if (template) {
-        return template(...values)(property);
-    }
-    throw new Error(`No template for ${QuerySyntaxEnum[type]}`);
-}
-
-
-const handleValuesPerCondition = (type: QuerySyntaxEnum, template: QuerySyntaxTemplate, values?: any[]) =>
-    (functions: Fn[], data: PropertyOrLogicalOperatorScope, i: number) => {
-        if (i > 0) {
-            functions.push(useTemplate(data.type));
-        }
-        functions.push(template(...values)(data));
-        return functions;
-    }
-
-const handleConditionPerValue = (type: QuerySyntaxEnum, template: QuerySyntaxTemplate, values?: any[]) =>
-    (functions: Fn[], data: PropertyOrLogicalOperatorScope) => {
-        if (isLogicalOperatorScope(data)) {
-            functions.push(useTemplate(data.type), ...handleCondition(type, handleConditionPerValue, data.properties, values));
-        } else {
-            for (const value of values) {
-                if (isLogicalOperatorScope(value)) {
-                    functions.push(useTemplate(value.type), ...handleCondition(type, handleConditionPerValue, [data], value.properties));
-                } else {
-                    functions.push(template(value)(data));
-                }
-            }
-        }
-        return functions;
-    }
-
-const handleCondition = (type: QuerySyntaxEnum, reducer: Fn, keychain?: PropertyOrLogicalOperatorScope[], values?: any[]): Fn[] => {
-    const template = templates.get(type);
-    const functions: Fn[] = keychain.reduce(reducer(type, template, values), []);
-
-    return functions.length > 1
-        ? [
-            useTemplate(QuerySyntaxEnum.OpenParentheses),
-            ...functions,
-            useTemplate(QuerySyntaxEnum.CloseParentheses)
-        ]
-        : functions;
-}
-
-const parseResultsToUnions = (distinct:boolean) => (list:Union[], data:IQueryResult) => (list.push(newUnion(distinct, data)),list);
+const parseResultsToUnions = (distinct: boolean) => (list: Union[], data: IQueryResult) => (list.push(newUnion(distinct, data)), list);
 
 export const newQueryContextBuilder = (): IQueryContextBuilder => {
-    let keychain: PropertyOrLogicalOperatorScope[] = [];
     let tempJoinBuilder: IJoinBuilder;
     const queryContext: IQueryContext = newQueryContext();
     const history: QuerySyntaxEnum[] = [];
+    const conditionsBuilder: IConditionsBuilder = newConditionsBuilder(history);
 
     const handleSelect = (...args: any[]): void => {
         queryContext.data = args.reduce(handleMySqlFunctions(queryContext.functions), []);
@@ -161,7 +112,7 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
 
     const handleJoin = (type: JoinType) => (...args: any[]): void => {
         const defualtTable = queryContext.tables[0];
-        if(!defualtTable) {
+        if (!defualtTable) {
             throw new Error(`"defaultTable" is undefined`)
         }
         tempJoinBuilder = newJoinBuilder(type, defualtTable, args[0]);
@@ -195,8 +146,6 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
     }
 
     const handleKeychain = (type: QuerySyntaxEnum) => (...args: any[]): void => {
-        const lastType: QuerySyntaxEnum = history[history.length - 1];
-        const penultimateType: QuerySyntaxEnum = history[history.length - 2];
         const defaultTable: Table = queryContext.tables[0];
         const keys: PropertyOrLogicalOperatorScope[] = args.reduce(
             combineReducers(
@@ -204,77 +153,67 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
                 ifLogicalOperatorScopeThenParseItsKeys(defaultTable),
                 mergePropertiesWithLogicalAnd
             ), []);
-
-        if (isAndOr(lastType) && penultimateType === type) {
-            const lastKey: PropertyOrLogicalOperatorScope = keychain[keychain.length - 1];
-            if (!isLogicalOperatorScope(lastKey)) {
-                throw new Error(`Key ${lastKey} should be LogialOperatorScope type!`)
-            }
-            lastKey.properties.push(...keys);
-        } else {
-            keychain = [...keys];
-        }
+        conditionsBuilder.add(type, ...keys);
     }
 
     const handleLimit = (...args: number[]): void => {
         queryContext.limit = newLimit(args[0], args[1]);
     }
 
-    const handleLogicalOperator = (type: QuerySyntaxEnum) => (): void => {
-        const lastType: QuerySyntaxEnum = history[history.length - 1];
-        if (lastType === QuerySyntaxEnum.Where) {
-            keychain.push(newLogicalOperatorScope(type));
-        } else {
-            queryContext.conditions.add(useTemplate(type));
-        }
-    }
-
-    const handleParentheses = (type: QuerySyntaxEnum) => (): void => {
-        queryContext.conditions.add(useTemplate(type));
+    const handleParentheses = (type:QuerySyntaxEnum) => (): void => {
+        conditionsBuilder.add(type);
     }
 
     const handleNot = (): void => {
-        queryContext.conditions.add(useTemplate(QuerySyntaxEnum.Not));
+        conditionsBuilder.add(QuerySyntaxEnum.Not);
     }
 
     const handleBetween = (...args: any[]): void => {
-        queryContext.conditions.add(...handleCondition(QuerySyntaxEnum.Between, handleValuesPerCondition, keychain.slice(), args));
+        conditionsBuilder.add(QuerySyntaxEnum.Between, args);
     }
 
     const handleEQ = (...args: any[]): void => {
-        queryContext.conditions.add(...handleCondition(QuerySyntaxEnum.EQ, handleConditionPerValue, keychain.slice(), args));
+        conditionsBuilder.add(QuerySyntaxEnum.EQ, ...args);
     }
 
     const handleLT = (...args: any[]): void => {
-        queryContext.conditions.add(...handleCondition(QuerySyntaxEnum.LT, handleConditionPerValue, keychain.slice(), args));
+        conditionsBuilder.add(QuerySyntaxEnum.LT, ...args);
     }
 
     const handleGT = (...args: any[]): void => {
-        queryContext.conditions.add(...handleCondition(QuerySyntaxEnum.GT, handleConditionPerValue, keychain.slice(), args));
+        conditionsBuilder.add(QuerySyntaxEnum.GT, ...args);
     }
 
     const handleLike = (...args: any[]): void => {
-        queryContext.conditions.add(...handleCondition(QuerySyntaxEnum.Like, handleConditionPerValue, keychain.slice(), args));
+        conditionsBuilder.add(QuerySyntaxEnum.Like, ...args);
     }
 
     const handleNull = (...args: any[]): void => {
-        queryContext.conditions.add(...handleCondition(QuerySyntaxEnum.Null, handleConditionPerValue, keychain.slice(), args));
+        conditionsBuilder.add(QuerySyntaxEnum.Null, ...args);
     }
 
     const handleExists = (...args: any[]): void => {
-        queryContext.conditions.add(useTemplate(QuerySyntaxEnum.Exists, null, ...args));
+        conditionsBuilder.add(QuerySyntaxEnum.Exists, ...args);
     }
-    
+
     const handleIn = (...args: any[]): void => {
-        queryContext.conditions.add(...handleCondition(QuerySyntaxEnum.In, handleValuesPerCondition, keychain.slice(), args));
+        conditionsBuilder.add(QuerySyntaxEnum.In, ...args);
     }
-    
+
     const handleUnion = (...args: any[]): void => {
-        queryContext.unions.push(...args.reduce(parseResultsToUnions(true),[]));
+        queryContext.unions.push(...args.reduce(parseResultsToUnions(true), []));
     }
 
     const handleUnionAll = (...args: any[]): void => {
-        queryContext.unions.push(...args.reduce(parseResultsToUnions(false),[]));
+        queryContext.unions.push(...args.reduce(parseResultsToUnions(false), []));
+    }
+
+    const handleAnd = (): void => {
+        conditionsBuilder.add(QuerySyntaxEnum.And);
+    }
+
+    const handleOr = (): void => {
+        conditionsBuilder.add(QuerySyntaxEnum.Or);
     }
 
     const handles = new Map<QuerySyntaxEnum, Fn>([
@@ -294,8 +233,8 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
         [QuerySyntaxEnum.LT, handleLT],
         [QuerySyntaxEnum.Null, handleNull],
         [QuerySyntaxEnum.Not, handleNot],
-        [QuerySyntaxEnum.And, handleLogicalOperator(QuerySyntaxEnum.And)],
-        [QuerySyntaxEnum.Or, handleLogicalOperator(QuerySyntaxEnum.Or)],
+        [QuerySyntaxEnum.And, handleAnd],
+        [QuerySyntaxEnum.Or, handleOr],
         [QuerySyntaxEnum.LeftJoin, handleJoin(QuerySyntaxEnum.LeftJoin)],
         [QuerySyntaxEnum.RightJoin, handleJoin(QuerySyntaxEnum.RightJoin)],
         [QuerySyntaxEnum.Join, handleJoin(QuerySyntaxEnum.Join)],
@@ -317,6 +256,7 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
         with: (type: QuerySyntaxEnum, params: any[]): void => {
             const handle = handles.get(type);
             if (handle) {
+                console.log(QuerySyntaxEnum[type])
                 handle(...params);
             }
             if (isPrimaryCommand(type)) {
@@ -324,7 +264,11 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
             }
             history.push(type);
         },
-        build: (): IQueryContext => queryContext
+        build: (): IQueryContext => {
+            queryContext.conditions = conditionsBuilder.build();
+            console.log('@!!!', JSON.stringify(queryContext.conditions))
+            return queryContext;
+        }
     }
     return builder;
 }

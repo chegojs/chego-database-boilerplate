@@ -1,9 +1,9 @@
-import { QuerySyntaxEnum, IQueryResult, Table, Limit, SortingData, FunctionData, Fn, Property, IQuery } from '@chego/chego-api';
-import { Row, Join, QueryPipelinesMap } from './types';
+import { QuerySyntaxEnum, IQueryResult, Table, Limit, SortingData, FunctionData, Property, IQuery, ExpressionOrExpressionScope } from '@chego/chego-api';
+import { Join, QueryPipelinesMap } from './types';
 
-export interface IConditions {
-    add(...conditions: Fn[]):void;
-    test(row:Row):boolean;
+export interface IConditionsBuilder {
+    add(type: QuerySyntaxEnum,  ...values: any[]): void;
+    build(): ExpressionOrExpressionScope[];
 }
 
 export interface IJoinBuilder {
@@ -14,7 +14,7 @@ export interface IJoinBuilder {
 
 export interface IQueriesExecutor {
     withPipelines(pipelines: QueryPipelinesMap): IQueriesExecutor;
-    withDBClient(client: any): IQueriesExecutor;
+    withDBRef(client: any): IQueriesExecutor;
     execute(queries: IQuery[]): Promise<any>;
 }
 
@@ -34,5 +34,5 @@ export interface IQueryContext {
     orderBy:SortingData[];
     groupBy:SortingData[];
     functions:FunctionData[];
-    conditions:IConditions;
+    conditions:ExpressionOrExpressionScope[];
 }

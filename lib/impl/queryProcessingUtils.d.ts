@@ -1,0 +1,16 @@
+import { Row, InputDataSnapshot, OutputDataSnapshot } from '../api/types';
+import { Limit, Property, Table } from '@chego/chego-api';
+import { IQueryContext } from '../api/interfaces';
+export declare const parseRowsToArray: (result: any[], row: Row) => any[];
+export declare const parseRowsToObject: (result: any, row: Row) => any;
+export declare const shouldFilterRowContent: (properties: Property[]) => boolean;
+export declare const parseDataSnapshotToRows: (table: Table, data: any) => Row[];
+export declare const filterQueryResultsIfRequired: (queryContext: IQueryContext) => (queryResult: Map<string, Row[]>) => Map<string, Row[]>;
+export declare const convertMapToInputData: (tablesMap: Map<string, Row[]>) => InputDataSnapshot;
+export declare const convertMapToOutputData: (tablesMap: Map<string, Row[]>) => OutputDataSnapshot;
+export declare const spliceQueryResultsIfRequired: (limit: Limit) => (data: any) => any;
+export declare const containsSelectAllShorthand: (properties: Property[]) => boolean;
+export declare const shouldNullifyEntireRows: (properties: Property[]) => boolean;
+export declare const nullifyData: (properties: Property[]) => (data: Map<string, Row[]>) => Map<string, Row[]>;
+export declare const withErrorMessage: (errors: Map<string, Error>) => string;
+export declare const updateContent: (newContent: any) => (data: Map<string, Row[]>) => Map<string, Row[]>;

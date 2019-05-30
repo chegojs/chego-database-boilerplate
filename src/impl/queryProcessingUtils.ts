@@ -32,12 +32,12 @@ export const filterQueryResultsIfRequired = (queryContext: IQueryContext) => (qu
 
     queryResult.forEach((rows: Row[], tableName: string) => {
         tableRows = rows.filter((row: Row, index: number) => {
-            if (queryContext.conditions.test(row)) {
-                if (shouldFilterRowContent(queryContext.data) && queryContext.type === QuerySyntaxEnum.Select) {
-                    row.content = queryContext.data.reduce((content: any, property: Property) => select(property)(content)(row), {});
-                }
-                return true;
-            }
+            // if (queryContext.conditions.test(row)) {
+            //     if (shouldFilterRowContent(queryContext.data) && queryContext.type === QuerySyntaxEnum.Select) {
+            //         row.content = queryContext.data.reduce((content: any, property: Property) => select(property)(content)(row), {});
+            //     }
+            //     return true;
+            // }
             return false;
         });
         parsedResult.set(tableName, tableRows);

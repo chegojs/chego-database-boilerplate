@@ -1,6 +1,5 @@
 
 import { IQueryContext } from '../api/interfaces';
-import { newConditions } from './conditions';
 import { IQueryResult, AnyButFunction } from '@chego/chego-api';
 
 const newQueryResult = ():IQueryResult => {
@@ -27,5 +26,5 @@ export const newQueryContext = ():IQueryContext => ({
     orderBy:[],
     groupBy:[],
     functions:[],
-    conditions:newConditions()
+    conditions:[]
 });

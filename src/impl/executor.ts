@@ -27,36 +27,35 @@ const parseScheme = (scheme: IQueryScheme): IQueryContext[] => {
     return queryScope;
 };
 
-const pickPipeline = (pipelines: QueryPipelinesMap, type: QuerySyntaxEnum) => (): Promise<QueryPipeline> => new Promise((resolve, reject) => {
-    const pipeline: QueryPipeline = pipelines.get(type);
-    return pipeline ? resolve(pipeline) : reject('No pipeline');
-});
+const pickPipeline = (pipelines: QueryPipelinesMap, type: QuerySyntaxEnum) => (): Promise<QueryPipeline> =>
+    new Promise((resolve, reject) => {
+        const pipeline: QueryPipeline = pipelines.get(type);
+        return pipeline ? resolve(pipeline) : reject('No pipeline');
+    });
 
 const buildQueryScope = (query: IQuery) => () => {
     const queryScope: IQueryContext[] = parseScheme(query.scheme);
-
     if (!queryScope) {
         throw new Error('Empty QueryScope');
     }
-
     return Promise.resolve(queryScope);
 }
-const executeQueryScopeWithClient = (client: any, pipelines: QueryPipelinesMap) => (queryScope: IQueryContext[]) =>
+const executeQueryScope = (dbRef: object, pipelines: QueryPipelinesMap) => (queryScope: IQueryContext[]) =>
     queryScope.reduce((queries, query) =>
         queries.then(pickPipeline(pipelines, query.type))
-            .then((pipeline: any) => pipeline(client, query)), Promise.resolve())
+            .then((pipeline: QueryPipeline) => pipeline(dbRef, query)), Promise.resolve())
 
 export const newExecutor = (): IQueriesExecutor => {
     let queryPipelines: QueryPipelinesMap;
-    let dbClient: QueryPipelinesMap;
+    let dbRef: object;
     const executor: IQueriesExecutor = {
-        withPipelines: (pipelines: QueryPipelinesMap): any => (queryPipelines = pipelines, executor),
-        withDBClient: (client: any): any => (dbClient = client, executor),
+        withPipelines: (pipelines: QueryPipelinesMap): IQueriesExecutor => (queryPipelines = pipelines, executor),
+        withDBRef: (ref: object): IQueriesExecutor => (dbRef = ref, executor),
         execute: (queries: IQuery[]): Promise<any> => new Promise((resolve, reject) =>
             queries.reduce((queries, query) =>
                 queries
                     .then(buildQueryScope(query))
-                    .then(executeQueryScopeWithClient(dbClient, queryPipelines)),
+                    .then(executeQueryScope(dbRef, queryPipelines)),
                 Promise.resolve())
                 .then(resolve)
                 .catch(reject))
