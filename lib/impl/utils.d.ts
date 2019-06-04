@@ -1,5 +1,6 @@
-import { Row } from '../api/types';
-import { SortingOrderEnum, IQueryResult } from '@chego/chego-api';
+import { Row, Union, JoinType, Join } from '../api/types';
+import { SortingOrderEnum, IQueryResult, Property, Table } from '@chego/chego-api';
+import { IJoinBuilder } from '../api/interfaces';
 export declare const createEmptyObject: (keys: string[]) => any;
 export declare const newDataMap: (iterable?: any[]) => Map<string, Row[]>;
 export declare const newRow: ({ table, key, scheme, content }: Row) => Row;
@@ -7,3 +8,6 @@ export declare const parseStringToSortingOrderEnum: (value: string) => SortingOr
 export declare const isQueryResult: (value: any) => value is IQueryResult;
 export declare const basicSort: (a: any, b: any, direction: SortingOrderEnum) => number;
 export declare const isNumeric: (n: any) => boolean;
+export declare const newUnion: (distinct: boolean, data: IQueryResult) => Union;
+export declare const newJoin: (type: JoinType, property: Property) => Join;
+export declare const newJoinBuilder: (type: JoinType, tableA: Table, tableB: Table) => IJoinBuilder;

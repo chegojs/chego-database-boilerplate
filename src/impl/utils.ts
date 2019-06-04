@@ -1,5 +1,7 @@
-import { DataMap, Row } from '../api/types';
-import { SortingOrderEnum, IQueryResult } from '@chego/chego-api';
+import { newProperty } from '@chego/chego-tools';
+import { DataMap, Row, Union, JoinType, Join } from '../api/types';
+import { SortingOrderEnum, IQueryResult, Property, Table } from '@chego/chego-api';
+import { IJoinBuilder } from '../api/interfaces';
 
 
 export const createEmptyObject = (keys: string[]) => keys.reduce((acc: any, c: string) => { acc[c] = null; return acc; }, {});
@@ -21,3 +23,27 @@ export const isQueryResult = (value: any): value is IQueryResult => value && (<I
 export const basicSort = (a: any, b: any, direction: SortingOrderEnum) => direction * ((a < b) ? -1 : (a > b) ? 1 : 0);
 
 export const isNumeric = (n:any):boolean => !isNaN(parseFloat(n)) && isFinite(n);
+
+export const newUnion = (distinct:boolean, data:IQueryResult): Union => ({distinct, data});
+
+export const newJoin = (type:JoinType, property:Property): Join => ({type, propertyB:property, propertyA:newProperty({})});
+
+export const newJoinBuilder = (type:JoinType, tableA:Table, tableB:Table): IJoinBuilder => {
+    const propA:Property = newProperty({});
+    const propB:Property = newProperty({});
+
+    const builder: IJoinBuilder = {
+        withOn:(first:Property, second:Property) : IJoinBuilder => {
+            Object.assign(propA, first);
+            Object.assign(propB, second);
+            return builder;
+        },
+        using:(property:Property) : IJoinBuilder => {
+            Object.assign(propA, property, { table:tableA });
+            Object.assign(propB, property, { table:tableB });
+            return builder;
+        },
+        build:() => ({type, propertyA:propA, propertyB:propB})
+    }
+    return builder;
+}

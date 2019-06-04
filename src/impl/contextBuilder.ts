@@ -3,9 +3,7 @@ import { PropertyOrLogicalOperatorScope, QuerySyntaxEnum, Fn, Table, FunctionDat
 import { IQueryContext, IQueryContextBuilder, IJoinBuilder, IConditionsBuilder } from '../api/interfaces';
 import { newQueryContext } from './queryContext';
 import { combineReducers, mergePropertiesWithLogicalAnd, isLogicalOperatorScope, isProperty, isMySQLFunction, isAliasString, newTable, isAlias, newSortingData, parseStringToProperty, newLimit } from '@chego/chego-tools';
-import { parseStringToSortingOrderEnum } from './utils';
-import { newJoinBuilder } from './joins';
-import { newUnion } from './unions';
+import { parseStringToSortingOrderEnum, newJoinBuilder, newUnion } from './utils';
 import { newConditionsBuilder } from './conditions';
 
 const isPrimaryCommand = (type: QuerySyntaxEnum) => type === QuerySyntaxEnum.Select
@@ -216,7 +214,7 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
         conditionsBuilder.add(QuerySyntaxEnum.Or);
     }
 
-    const handles = new Map<QuerySyntaxEnum, Fn>([
+    const handles = new Map<QuerySyntaxEnum, Fn<void>>([
         [QuerySyntaxEnum.Delete, handleDelete],
         [QuerySyntaxEnum.Insert, handleInsert],
         [QuerySyntaxEnum.Select, handleSelect],
@@ -256,7 +254,6 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
         with: (type: QuerySyntaxEnum, params: any[]): void => {
             const handle = handles.get(type);
             if (handle) {
-                console.log(QuerySyntaxEnum[type])
                 handle(...params);
             }
             if (isPrimaryCommand(type)) {
@@ -266,7 +263,6 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
         },
         build: (): IQueryContext => {
             queryContext.conditions = conditionsBuilder.build();
-            console.log('@!!!', JSON.stringify(queryContext.conditions))
             return queryContext;
         }
     }

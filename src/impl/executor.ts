@@ -2,7 +2,7 @@ import { QueryPipelinesMap, QueryPipeline } from './../api/types';
 import { IQuery, IQueryScheme, IQuerySchemeArray, IQuerySchemeElement, QuerySyntaxEnum } from '@chego/chego-api';
 import { IQueryContext, IQueryContextBuilder, IQueriesExecutor } from '../api/interfaces';
 import { newQueryContextBuilder } from './contextBuilder';
-import { isQueryScheme } from '@chego/chego-tools';
+import { isQueryScheme, withValidator } from '@chego/chego-tools';
 import { validators } from './validators';
 
 const parseScheme = (scheme: IQueryScheme): IQueryContext[] => {
@@ -43,22 +43,29 @@ const buildQueryScope = (query: IQuery) => () => {
 const executeQueryScope = (dbRef: object, pipelines: QueryPipelinesMap) => (queryScope: IQueryContext[]) =>
     queryScope.reduce((queries, query) =>
         queries.then(pickPipeline(pipelines, query.type))
-            .then((pipeline: QueryPipeline) => pipeline(dbRef, query)), Promise.resolve())
+            .then((pipeline: QueryPipeline) => pipeline(dbRef, query))
+            .then((result) => { query.result.setData(result); return result; }),
+            Promise.resolve());
 
 export const newExecutor = (): IQueriesExecutor => {
     let queryPipelines: QueryPipelinesMap;
     let dbRef: object;
+
+    const executeQueries = (queries: IQuery[]) => new Promise((resolve, reject) => queries.reduce((queries, query) =>
+        queries
+            .then(buildQueryScope(query))
+            .then(executeQueryScope(dbRef, queryPipelines)),
+        Promise.resolve())
+        .then(resolve)
+        .catch(reject))
+
     const executor: IQueriesExecutor = {
         withPipelines: (pipelines: QueryPipelinesMap): IQueriesExecutor => (queryPipelines = pipelines, executor),
         withDBRef: (ref: object): IQueriesExecutor => (dbRef = ref, executor),
-        execute: (queries: IQuery[]): Promise<any> => new Promise((resolve, reject) =>
-            queries.reduce((queries, query) =>
-                queries
-                    .then(buildQueryScope(query))
-                    .then(executeQueryScope(dbRef, queryPipelines)),
-                Promise.resolve())
-                .then(resolve)
-                .catch(reject))
+        execute: (queries: IQuery[]): Promise<any> => withValidator<Promise<any>>()
+            .check(() => queryPipelines !== undefined)
+            .check(() => dbRef !== undefined)
+            .thenCall(executeQueries, queries)
     }
     return executor;
 }

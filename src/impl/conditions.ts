@@ -99,7 +99,7 @@ export const newConditionsBuilder = (history:QuerySyntaxEnum[]): IConditionsBuil
         negation = true;
     }
 
-    const handles = new Map<QuerySyntaxEnum, Fn>([
+    const handles = new Map<QuerySyntaxEnum, Fn<void>>([
         [QuerySyntaxEnum.Where, handleKeychain(QuerySyntaxEnum.Where)],
         [QuerySyntaxEnum.Having, handleKeychain(QuerySyntaxEnum.Having)],
         [QuerySyntaxEnum.OpenParentheses, openParentheses],
