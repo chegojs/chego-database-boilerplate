@@ -26,8 +26,10 @@ const ifAliasThenParseToTable = (tables: Table[], table: any) => (isAlias(table)
     ? tables.concat(newTable(table.name, table.alias))
     : tables.concat(table);
 
-const ifEmptyTableSetDefault = (defaultTable: Table) => (list: PropertyOrLogicalOperatorScope[], data: PropertyOrLogicalOperatorScope) => {
-    if (isProperty(data) && !data.table) {
+const ifEmptyTableSetDefault = (defaultTable: Table) => (list: any[], data: any) => {
+    if(isMySQLFunction(data)) {
+        data.properties = data.properties.reduce(ifEmptyTableSetDefault(defaultTable), []);
+    } else if (isProperty(data) && !data.table) {
         data.table = defaultTable;
     }
     return list.concat(data);
@@ -42,14 +44,6 @@ const ifLogicalOperatorScopeThenParseItsKeys = (defaultTable: Table) => (list: P
             ), []);
     }
     return list.concat(data);
-}
-
-const handleMySqlFunctions = (mySqlFunctions: FunctionData[]) => (keys: Property[], data: Property | FunctionData) => {
-    if (isMySQLFunction(data)) {
-        mySqlFunctions.push(data);
-        return keys.concat(data.properties);
-    }
-    return keys.concat(data);
 }
 
 const parseStringToSortingData = (defaultTable: Table) => (data: SortingData[], entry: string): SortingData[] => {
@@ -74,7 +68,7 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
     const conditionsBuilder: IConditionsBuilder = newConditionsBuilder(history);
 
     const handleSelect = (...args: any[]): void => {
-        queryContext.data = args.reduce(handleMySqlFunctions(queryContext.functions), []);
+        queryContext.data = args;
     }
 
     const handleInsert = (...args: any[]): void => {

@@ -1,7 +1,7 @@
 {
-  "name": "@chego/chego-nosql",
+  "name": "@chego/chego-database-boilerplate",
   "version": "1.0.0",
-  "description": "The basic code for implementing the NoSQL database driver",
+  "description": "The basic code for implementing the 'Chego' database driver",
   "main": "lib/index.js",
   "files": [
     "lib/**/*"
@@ -15,7 +15,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/chegojs/chego-nosql.git"
+    "url": "git+https://github.com/chegojs/chego-database-boilerplate.git"
   },
   "keywords": [
     "chego",
@@ -23,14 +23,16 @@
     "nosql",
     "fluent interface",
     "universal",
-    "query"
+    "query",
+    "api",
+    "tools"
   ],
   "author": "Radoslaw Kamysz",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/chegojs/chego-nosql/issues"
+    "url": "https://github.com/chegojs/chego-database-boilerplate/issues"
   },
-  "homepage": "https://github.com/chegojs/chego-nosql#readme",
+  "homepage": "https://github.com/chegojs/chego-database-boilerplate#readme",
   "devDependencies": {
     "@types/mockery": "^1.4.29",
     "@types/jest": "^24.0.11",
@@ -43,7 +45,7 @@
     "typescript": "^3.4.3"
   },
   "dependencies": {
-    "@chego/chego-api": "1.2.5",
-    "@chego/chego-tools": "1.2.0"
+    "@chego/chego-api": "2.0.0",
+    "@chego/chego-tools": "2.0.0"
   }
 }

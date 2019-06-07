@@ -1,10 +1,10 @@
-# chego-nosql
+# chego-database-boilerplate
 
-The basic code for implementing the NoSQL database driver
+The basic code for implementing the `Chego` database driver
 
 ## Install
 ```
-npm install --save @chego/chego-nosql
+npm install --save @chego/chego-database-boilerplate
 ```
 
 ## Contribute

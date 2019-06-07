@@ -34,8 +34,8 @@ export const newJoinBuilder = (type:JoinType, tableA:Table, tableB:Table): IJoin
 
     const builder: IJoinBuilder = {
         withOn:(first:Property, second:Property) : IJoinBuilder => {
-            Object.assign(propA, first);
-            Object.assign(propB, second);
+            Object.assign(propA, first, { table:tableA });
+            Object.assign(propB, second, { table:tableB });
             return builder;
         },
         using:(property:Property) : IJoinBuilder => {
