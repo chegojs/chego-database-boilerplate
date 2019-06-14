@@ -26,5 +26,5 @@ export const newQueryContext = ():IQueryContext => ({
     orderBy:[],
     groupBy:[],
     functions:[],
-    conditions:[]
+    expressions:[]
 });

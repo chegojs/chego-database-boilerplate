@@ -26,9 +26,20 @@ const ifAliasThenParseToTable = (tables: Table[], table: any) => (isAlias(table)
     ? tables.concat(newTable(table.name, table.alias))
     : tables.concat(table);
 
+const setDefaultTableInFunctionParam = (data:FunctionData, defaultTable: Table) => {
+    if(isProperty(data.param) && !data.param.table) {
+        data.param.table = defaultTable;
+    } else {
+        const params:any[] = Object.values(data.param);
+        for(const param of params) {
+            setDefaultTableInFunctionParam(param, defaultTable);
+        }
+    }
+}
+
 const ifEmptyTableSetDefault = (defaultTable: Table) => (list: any[], data: any) => {
     if(isMySQLFunction(data)) {
-        data.properties = data.properties.reduce(ifEmptyTableSetDefault(defaultTable), []);
+        setDefaultTableInFunctionParam(data.param, defaultTable);
     } else if (isProperty(data) && !data.table) {
         data.table = defaultTable;
     }
@@ -87,11 +98,13 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
     }
 
     const handleFrom = (...args: any[]): void => {
+        console.log('!!!!')
         queryContext.tables = args.reduce(combineReducers(
             ifStringThenParseToTable,
             ifAliasThenParseToTable
         ), []);
         queryContext.data.reduce(ifEmptyTableSetDefault(queryContext.tables[0]), []);
+        console.log('DATA', JSON.stringify(queryContext.data));
     }
 
     const handleOrderBy = (...args: any[]): void => {
@@ -256,7 +269,7 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
             history.push(type);
         },
         build: (): IQueryContext => {
-            queryContext.conditions = conditionsBuilder.build();
+            queryContext.expressions = conditionsBuilder.build();
             return queryContext;
         }
     }
