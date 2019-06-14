@@ -1,10 +1,31 @@
 import { JoinType, Union } from '../api/types';
-import { PropertyOrLogicalOperatorScope, QuerySyntaxEnum, Fn, Table, FunctionData, Property, AnyButFunction, SortingData, IQueryResult } from '@chego/chego-api';
+import { PropertyOrLogicalOperatorScope, QuerySyntaxEnum, Fn, Table, AnyButFunction, SortingData, IQueryResult, FunctionData, Property } from '@chego/chego-api';
 import { IQueryContext, IQueryContextBuilder, IJoinBuilder, IConditionsBuilder } from '../api/interfaces';
 import { newQueryContext } from './queryContext';
-import { combineReducers, mergePropertiesWithLogicalAnd, isLogicalOperatorScope, isProperty, isMySQLFunction, isAliasString, newTable, isAlias, newSortingData, parseStringToProperty, newLimit } from '@chego/chego-tools';
+import { combineReducers, mergePropertiesWithLogicalAnd, isLogicalOperatorScope, isProperty, isMySQLFunction, isAliasString, newTable, isAlias, newSortingData, parseStringToProperty, newLimit, newProperty, isObject } from '@chego/chego-tools';
 import { parseStringToSortingOrderEnum, newJoinBuilder, newUnion } from './utils';
 import { newConditionsBuilder } from './conditions';
+
+const appendTempProperties = (list:Property[], data:any):Property[] => {
+    if(isProperty(data)) {
+        list.push(data);
+    } else {
+        if(isObject(data)) {
+            Object.values(data).reduce(appendTempProperties, list);
+        }
+    }
+    return list;
+}
+
+const handleMySqlFunctions = (mySqlFunctions: FunctionData[]) => (list: Property[], current: Property | FunctionData) => {
+    if (isMySQLFunction(current)) {
+        mySqlFunctions.push(current);
+        appendTempProperties(list, current.param);
+    } else {
+        list.push(current);
+    }
+    return list;
+}
 
 const isPrimaryCommand = (type: QuerySyntaxEnum) => type === QuerySyntaxEnum.Select
     || type === QuerySyntaxEnum.Update
@@ -26,23 +47,10 @@ const ifAliasThenParseToTable = (tables: Table[], table: any) => (isAlias(table)
     ? tables.concat(newTable(table.name, table.alias))
     : tables.concat(table);
 
-const setDefaultTableInFunctionParam = (data:FunctionData, defaultTable: Table) => {
-    if(isProperty(data.param) && !data.param.table) {
-        data.param.table = defaultTable;
-    } else {
-        const params:any[] = Object.values(data.param);
-        for(const param of params) {
-            setDefaultTableInFunctionParam(param, defaultTable);
-        }
-    }
-}
-
 const ifEmptyTableSetDefault = (defaultTable: Table) => (list: any[], data: any) => {
-    if(isMySQLFunction(data)) {
-        setDefaultTableInFunctionParam(data.param, defaultTable);
-    } else if (isProperty(data) && !data.table) {
-        data.table = defaultTable;
-    }
+    if(isProperty(data) && !data.table) {
+            data.table = defaultTable;
+        }
     return list.concat(data);
 }
 
@@ -79,7 +87,7 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
     const conditionsBuilder: IConditionsBuilder = newConditionsBuilder(history);
 
     const handleSelect = (...args: any[]): void => {
-        queryContext.data = args;
+        queryContext.data = args.reduce(handleMySqlFunctions(queryContext.functions), []);
     }
 
     const handleInsert = (...args: any[]): void => {
@@ -98,13 +106,11 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
     }
 
     const handleFrom = (...args: any[]): void => {
-        console.log('!!!!')
         queryContext.tables = args.reduce(combineReducers(
             ifStringThenParseToTable,
             ifAliasThenParseToTable
         ), []);
         queryContext.data.reduce(ifEmptyTableSetDefault(queryContext.tables[0]), []);
-        console.log('DATA', JSON.stringify(queryContext.data));
     }
 
     const handleOrderBy = (...args: any[]): void => {
@@ -165,7 +171,7 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
         queryContext.limit = newLimit(args[0], args[1]);
     }
 
-    const handleParentheses = (type:QuerySyntaxEnum) => (): void => {
+    const handleParentheses = (type: QuerySyntaxEnum) => (): void => {
         conditionsBuilder.add(type);
     }
 
