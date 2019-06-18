@@ -1,35 +1,23 @@
-import { PropertyOrLogicalOperatorScope, QuerySyntaxEnum, Property, ExpressionOrExpressionScope, Fn } from '@chego/chego-api';
+import { PropertyOrLogicalOperatorScope, QuerySyntaxEnum, ExpressionOrExpressionScope, Fn, ExpressionScope } from '@chego/chego-api';
 import { isLogicalOperatorScope, newExpressionScope, newExpression, newLogicalOperatorScope, isExpressionScope } from '@chego/chego-tools';
 import { IConditionsBuilder } from '../api/interfaces';
 
 const isAndOr = (type: QuerySyntaxEnum): boolean => type === QuerySyntaxEnum.And || type === QuerySyntaxEnum.Or;
 
-const parseValue = (value:any) => {
-    if(value.table === null && value.type === -1 && value.alias === '') {
+const parseValue = (value: any) => {
+    if (value.table === null && value.type === -1 && value.alias === '') {
         return value.name;
     }
     return value;
 }
 
-const handleValues = (type: QuerySyntaxEnum, negation:boolean, property: Property, values: any[]): ExpressionOrExpressionScope[] =>
-    values.reduce((list: ExpressionOrExpressionScope[], value: any) =>
-        (list.push(isLogicalOperatorScope(value)
-            ? newExpressionScope(value.type, handleValues(type, negation, property, value.properties))
-            : newExpression(type, negation, property, parseValue(value))
-        ), list), []);
-
-const handleMultipleKeys = (type: QuerySyntaxEnum, negation:boolean, keychain: PropertyOrLogicalOperatorScope[], values?: any[]): ExpressionOrExpressionScope[] =>
-    keychain.reduce((list: ExpressionOrExpressionScope[], c: PropertyOrLogicalOperatorScope) =>
-        list.concat(isLogicalOperatorScope(c)
-            ? [newExpressionScope(c.type, handleMultipleKeys(type, negation, c.properties, values))]
-            : handleValues(type, negation, c, values)
-        ), []);
-
-export const newConditionsBuilder = (history:QuerySyntaxEnum[]): IConditionsBuilder => {
-    const conditions: any[] = [];
+export const newConditionsBuilder = (history: QuerySyntaxEnum[]): IConditionsBuilder => {
+    const expressions: ExpressionOrExpressionScope[] = [];
+    let root: ExpressionOrExpressionScope[] = expressions;
     let keychain: PropertyOrLogicalOperatorScope[] = [];
     let negation: boolean = false;
-    let root: any[] = conditions;
+    let scopePointer: ExpressionScope;
+    let followingScopePointer: ExpressionScope;
 
     const handleKeychain = (type: QuerySyntaxEnum) => (...keys: PropertyOrLogicalOperatorScope[]): void => {
         const lastType: QuerySyntaxEnum = history[history.length - 1];
@@ -55,44 +43,65 @@ export const newConditionsBuilder = (history:QuerySyntaxEnum[]): IConditionsBuil
             } else {
                 keychain.push(newLogicalOperatorScope(type, [last]))
             }
-        } 
-        else {
-            const last: ExpressionOrExpressionScope = root.pop();
-            if(last) {
-                root.push(newExpressionScope(type, [last]));
+        } else {
+            if (!scopePointer) {
+                const last: ExpressionOrExpressionScope = root.pop();
+                const scope: ExpressionScope = newExpressionScope(type, [last]);
+                scopePointer = scope;
+                root.push(scope);
+            } else {
+                const scope: ExpressionScope = newExpressionScope(scopePointer.type, [...scopePointer.expressions]);
+                scopePointer.type = type;
+                scopePointer.expressions = [scope];
             }
         }
+    } 
+
+    const keychainToExpressions = (type: QuerySyntaxEnum, value: any) => (result: ExpressionOrExpressionScope[], key: PropertyOrLogicalOperatorScope): ExpressionOrExpressionScope[] => {
+        if (isLogicalOperatorScope(key)) {
+            const list = key.properties.reduce(keychainToExpressions(type, value), []);
+            const scope = newExpressionScope(key.type, list);
+            followingScopePointer = scope;
+            result.push(scope);
+        } else {
+            result.push(newExpression(type, negation, key, parseValue(value)));
+        }
+        return result;
+    }
+
+    const valuesToExpressions = (type: QuerySyntaxEnum, keychain: PropertyOrLogicalOperatorScope[]) => (result: ExpressionOrExpressionScope[], value: any): ExpressionOrExpressionScope[] => {
+        const expressions: ExpressionOrExpressionScope[] = [];
+        if (isLogicalOperatorScope(value)) {
+            value.properties.reduce(valuesToExpressions(type, keychain), expressions);
+            const scope = newExpressionScope(value.type, expressions);
+            followingScopePointer = scope;
+            result.push(scope);
+        } else {
+            keychain.reduce(keychainToExpressions(type, value), expressions);
+            result.push(...expressions);
+        }
+        return result;
     }
 
     const handleCondition = (type: QuerySyntaxEnum, values?: any[]): void => {
-        const multipleKeys:boolean = (keychain.length > 1 || isLogicalOperatorScope(keychain[0]));
-        const expressions = multipleKeys
-            ? handleMultipleKeys(type, negation, keychain, values)
-            : handleValues(type, negation, <Property>keychain[0], values);
-
-        const last: ExpressionOrExpressionScope = root.pop();
-        if (isExpressionScope(last)) {
-            last.expressions.push(...expressions);
-            root.push(last);
+        const expressions: ExpressionOrExpressionScope[] = values.reduce(valuesToExpressions(type, keychain), [])
+        if (scopePointer) {
+            scopePointer.expressions.push(...expressions);
+            scopePointer = followingScopePointer;
         } else {
             root.push(...expressions);
         }
+        followingScopePointer = null;
         negation = false;
     }
 
     const openParentheses = () => {
         root = [];
+        scopePointer = null;
     }
 
     const closeParentheses = () => {
-        const last: ExpressionOrExpressionScope = conditions.pop();
-        if (isExpressionScope(last)) {
-            last.expressions.push(...root);
-            conditions.push(last);
-        } else {
-            conditions.push(last, ...root);
-        }
-        root = conditions;
+        //
     }
 
     const setNegation = () => {
@@ -119,7 +128,7 @@ export const newConditionsBuilder = (history:QuerySyntaxEnum[]): IConditionsBuil
             }
         },
         build(): ExpressionOrExpressionScope[] {
-            return conditions;
+            return expressions;
         }
     }
 }
