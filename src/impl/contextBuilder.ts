@@ -2,7 +2,7 @@ import { JoinType, Union } from '../api/types';
 import { PropertyOrLogicalOperatorScope, QuerySyntaxEnum, Fn, Table, AnyButFunction, SortingData, IQueryResult, FunctionData, Property } from '@chego/chego-api';
 import { IQueryContext, IQueryContextBuilder, IJoinBuilder, IConditionsBuilder } from '../api/interfaces';
 import { newQueryContext } from './queryContext';
-import { combineReducers, mergePropertiesWithLogicalAnd, isLogicalOperatorScope, isProperty, isMySQLFunction, isAliasString, newTable, isAlias, newSortingData, parseStringToProperty, newLimit, newProperty, isObject } from '@chego/chego-tools';
+import { combineReducers, mergePropertiesWithLogicalAnd, isLogicalOperatorScope, isProperty, isMySQLFunction, isAliasString, newTable, isAlias, newSortingData, parseStringToProperty, newLimit, isObject } from '@chego/chego-tools';
 import { parseStringToSortingOrderEnum, newJoinBuilder, newUnion } from './utils';
 import { newConditionsBuilder } from './conditions';
 

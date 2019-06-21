@@ -10,3 +10,9 @@ export type QueryPipeline = (client:any, data:any) => Promise<any>;
 export type QueryPipelinesMap = Map<QuerySyntaxEnum, QueryPipeline>
 export type OutputDataSnapshot = {[tableName:string]:any[]}
 export type InputDataSnapshot = {[tableName:string]:object}
+
+export type Expressions = ExpressionOrExpressionScope | IExpressionsArray;
+export interface IExpressionsArray extends Array<Expressions> {}
+export type Expression = { type:QuerySyntaxEnum, not:boolean, property:Property, value:any };
+export type ExpressionScope = { type:QuerySyntaxEnum, expressions:Expressions[] };
+export type ExpressionOrExpressionScope = Expression | ExpressionScope;

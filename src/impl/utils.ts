@@ -1,6 +1,6 @@
 import { newProperty } from '@chego/chego-tools';
-import { DataMap, Row, Union, JoinType, Join } from '../api/types';
-import { SortingOrderEnum, IQueryResult, Property, Table } from '@chego/chego-api';
+import { DataMap, Row, Union, JoinType, Join, Expression, Expressions, ExpressionScope } from '../api/types';
+import { SortingOrderEnum, IQueryResult, Property, Table, QuerySyntaxEnum } from '@chego/chego-api';
 import { IJoinBuilder } from '../api/interfaces';
 
 
@@ -47,3 +47,21 @@ export const newJoinBuilder = (type:JoinType, tableA:Table, tableB:Table): IJoin
     }
     return builder;
 }
+
+export const newExpression = (type: QuerySyntaxEnum, not: boolean, property: Property, value: any): Expression => ({ type, not, value, property });
+
+export const newExpressionScope = (type: QuerySyntaxEnum, expressions: Expressions[]): ExpressionScope => ({ type, expressions });
+
+export const isExpressionScope = (data: any): data is ExpressionScope =>
+    data
+    && Object.keys(data).length === 2
+    && (<ExpressionScope>data).type !== undefined
+    && (<ExpressionScope>data).expressions !== undefined;
+
+export const isExpression = (value: any): value is Expression =>
+    value
+    && Object.keys(value).length === 4
+    && (<Expression>value).type !== undefined
+    && (<Expression>value).not !== undefined
+    && (<Expression>value).value !== undefined
+    && (<Expression>value).property !== undefined;
