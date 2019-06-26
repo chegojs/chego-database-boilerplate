@@ -1,8 +1,8 @@
 import { PropertyOrLogicalOperatorScope, QuerySyntaxEnum, Fn } from '@chego/chego-api';
 import { isLogicalOperatorScope, newLogicalOperatorScope } from '@chego/chego-tools';
-import { IConditionsBuilder } from '../api/interfaces';
-import { Expressions, ExpressionScope } from '../api/types';
-import { newExpressionScope, newExpression } from './utils';
+import { IConditionsBuilder } from '../../api/interfaces';
+import { Expressions, ExpressionScope } from '../../api/types';
+import { newExpressionScope, newExpression } from '../utils';
 
 const isAndOr = (type: QuerySyntaxEnum): boolean => type === QuerySyntaxEnum.And || type === QuerySyntaxEnum.Or;
 

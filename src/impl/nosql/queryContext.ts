@@ -1,5 +1,5 @@
 
-import { IQueryContext } from '../api/interfaces';
+import { IQueryContext } from '../../api/interfaces';
 import { IQueryResult, AnyButFunction } from '@chego/chego-api';
 
 const newQueryResult = ():IQueryResult => {

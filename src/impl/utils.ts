@@ -1,8 +1,9 @@
-import { newProperty } from '@chego/chego-tools';
-import { DataMap, Row, Union, JoinType, Join, Expression, Expressions, ExpressionScope } from '../api/types';
-import { SortingOrderEnum, IQueryResult, Property, Table, QuerySyntaxEnum } from '@chego/chego-api';
-import { IJoinBuilder } from '../api/interfaces';
-
+import { newProperty, isQueryScheme } from '@chego/chego-tools';
+import { DataMap, Row, Union, JoinType, Join, Expression, Expressions, ExpressionScope, SQLSyntaxTemplate } from '../api/types';
+import { SortingOrderEnum, IQueryResult, Property, Table, QuerySyntaxEnum, IQueryScheme, IQuerySchemeArray, IQuerySchemeElement } from '@chego/chego-api';
+import { IJoinBuilder, ISqlQueryBuilder } from '../api/interfaces';
+import { escape } from "sqlstring"
+import { newSqlQueryBuilder } from './sql/sqlQueryBuilder';
 
 export const createEmptyObject = (keys: string[]) => keys.reduce((acc: any, c: string) => { acc[c] = null; return acc; }, {});
 
@@ -65,3 +66,38 @@ export const isExpression = (value: any): value is Expression =>
     && (<Expression>value).not !== undefined
     && (<Expression>value).value !== undefined
     && (<Expression>value).property !== undefined;
+
+export const parsePropertyToString = (property: Property, useAlias: boolean = true): string =>
+    (useAlias && property.alias && property.type !== QuerySyntaxEnum.Alias)
+        ? property.alias
+        : property.table
+            ? `${property.table.name}.${property.name}`
+            : property.name;
+
+export const parseTableToString = (table: Table, useAlias?: boolean): string =>
+    useAlias && table.alias
+        ? table.alias
+        : table.name;
+
+export const parsePropertyToEquation = (properties: any) => (list: string[], key: string) =>
+    (list.push(`${key} = ${properties[key]}`), list);
+
+export const escapeValue = (value: any): any => {
+    if (typeof value === 'string') {
+        return escape(value);
+    }
+    return value;
+}
+
+export const parseSchemeToSQL = (scheme: IQueryScheme, templates:Map<QuerySyntaxEnum, SQLSyntaxTemplate>): string => {
+    const schemeArr: IQuerySchemeArray = scheme.toArray();
+    const queryBuilder: ISqlQueryBuilder = newSqlQueryBuilder(templates);
+
+    schemeArr.forEach((element: IQuerySchemeElement) => {
+        queryBuilder.with(element.type,
+            isQueryScheme(element.params[0])
+                ? [`(${parseSchemeToSQL(element.params[0], templates)})`]
+                : element.params);
+    });
+    return queryBuilder.build();
+}

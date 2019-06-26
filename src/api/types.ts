@@ -1,4 +1,4 @@
-import { Table, QuerySyntaxEnum, Property, IQueryResult } from '@chego/chego-api';
+import { Table, QuerySyntaxEnum, Property, IQueryResult, PropertyOrLogicalOperatorScope } from '@chego/chego-api';
 
 export type Row = { table:Table, key:string, content:any, scheme:string[] };
 export type DataMap = Map<string, Row[]>;
@@ -16,3 +16,9 @@ export interface IExpressionsArray extends Array<Expressions> {}
 export type Expression = { type:QuerySyntaxEnum, not:boolean, property:Property, value:any };
 export type ExpressionScope = { type:QuerySyntaxEnum, expressions:Expressions[] };
 export type ExpressionOrExpressionScope = Expression | ExpressionScope;
+
+export type SQLSyntaxTemplateData = {negation?:boolean, property?:string}
+export type SQLSyntaxTemplate = (data?:SQLSyntaxTemplateData) => (...values:any[]) => string;
+export type LogicalOperatorHandleData = {operator:QuerySyntaxEnum, condition:QuerySyntaxEnum, negation:boolean, properties:PropertyOrLogicalOperatorScope[], values:any[]}
+export type QueryBuilderHandle = (type:QuerySyntaxEnum, params:any[]) => void
+export type UseTemplateData = {type: QuerySyntaxEnum, negation?: boolean, property?: Property, values?: any}

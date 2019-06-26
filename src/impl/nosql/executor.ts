@@ -1,9 +1,9 @@
-import { QueryPipelinesMap, QueryPipeline } from './../api/types';
+import { QueryPipelinesMap, QueryPipeline } from '../../api/types';
 import { IQuery, IQueryScheme, IQuerySchemeArray, IQuerySchemeElement, QuerySyntaxEnum } from '@chego/chego-api';
-import { IQueryContext, IQueryContextBuilder, IQueriesExecutor } from '../api/interfaces';
+import { IQueryContext, IQueryContextBuilder, IQueriesExecutor } from '../../api/interfaces';
 import { newQueryContextBuilder } from './contextBuilder';
 import { isQueryScheme, withValidator } from '@chego/chego-tools';
-import { validators } from './validators';
+import { validators } from '../validators';
 
 const parseScheme = (scheme: IQueryScheme): IQueryContext[] => {
     let queryScope: IQueryContext[] = [];
