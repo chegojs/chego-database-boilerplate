@@ -1,9 +1,10 @@
+import { SQLQuery } from './../api/types';
 import { newProperty, isQueryScheme } from '@chego/chego-tools';
 import { DataMap, Row, Union, JoinType, Join, Expression, Expressions, ExpressionScope, SQLSyntaxTemplate } from '../api/types';
 import { SortingOrderEnum, IQueryResult, Property, Table, QuerySyntaxEnum, IQueryScheme, IQuerySchemeArray, IQuerySchemeElement } from '@chego/chego-api';
-import { IJoinBuilder, ISqlQueryBuilder } from '../api/interfaces';
+import { IJoinBuilder, ISQLQueryBuilder } from '../api/interfaces';
 import { escape } from "sqlstring"
-import { newSqlQueryBuilder } from './sql/sqlQueryBuilder';
+import { newSqlQueryBuilder as newSQLQueryBuilder } from './sql/sqlQueryBuilder';
 
 export const createEmptyObject = (keys: string[]) => keys.reduce((acc: any, c: string) => { acc[c] = null; return acc; }, {});
 
@@ -89,9 +90,9 @@ export const escapeValue = (value: any): any => {
     return value;
 }
 
-export const parseSchemeToSQL = (scheme: IQueryScheme, templates:Map<QuerySyntaxEnum, SQLSyntaxTemplate>): string => {
+export const parseSchemeToSQL = (scheme: IQueryScheme, templates:Map<QuerySyntaxEnum, SQLSyntaxTemplate>): SQLQuery => {
     const schemeArr: IQuerySchemeArray = scheme.toArray();
-    const queryBuilder: ISqlQueryBuilder = newSqlQueryBuilder(templates);
+    const queryBuilder: ISQLQueryBuilder = newSQLQueryBuilder(templates);
 
     schemeArr.forEach((element: IQuerySchemeElement) => {
         queryBuilder.with(element.type,

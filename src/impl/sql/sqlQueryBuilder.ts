@@ -1,17 +1,27 @@
-import { ISqlQueryBuilder } from '../../api/interfaces';
+import { SQLQuery } from './../../api/types';
+import { ISQLQueryBuilder } from '../../api/interfaces';
 import { SQLSyntaxTemplate, LogicalOperatorHandleData, QueryBuilderHandle, UseTemplateData } from '../../api/types';
 import { QuerySyntaxEnum, PropertyOrLogicalOperatorScope, Property, Fn, Obj, Table } from "@chego/chego-api";
 import { parsePropertyToString, parseTableToString, escapeValue } from '../utils';
 import { mergePropertiesWithLogicalAnd, isLogicalOperatorScope, newLogicalOperatorScope } from '@chego/chego-tools';
 import { validators } from '../validators';
 
-export const newSqlQueryBuilder = (templates:Map<QuerySyntaxEnum, SQLSyntaxTemplate>): ISqlQueryBuilder => {
+export const newSqlQueryBuilder = (templates:Map<QuerySyntaxEnum, SQLSyntaxTemplate>): ISQLQueryBuilder => {
     let keychain: PropertyOrLogicalOperatorScope[] = [];
-    const query: any[] = [];
+    const query:SQLQuery = { type:QuerySyntaxEnum.Undefined, body:'' };
+    const queryParts: any[] = [];
     const history: QuerySyntaxEnum[] = [];
+
+    const handlePrimary = (handle:(type: QuerySyntaxEnum, params: any[]) => void) => (type: QuerySyntaxEnum, params: any[]) => {
+        if(queryParts.length === 0) {
+            query.type = type;
+        }
+        handle(type, params);
+    }
 
     const handleSelect = (type: QuerySyntaxEnum, params: any[]): void => {
         const template: SQLSyntaxTemplate = templates.get(QuerySyntaxEnum.Select);
+        
         if (template) {
             const selection: string = (params.length === 0)
                 ? '*'
@@ -21,7 +31,7 @@ export const newSqlQueryBuilder = (templates:Map<QuerySyntaxEnum, SQLSyntaxTempl
                     return result;
                 }, []).join(', ');
 
-            query.push(template()(selection));
+            queryParts.push(template()(selection));
         }
     }
 
@@ -34,7 +44,7 @@ export const newSqlQueryBuilder = (templates:Map<QuerySyntaxEnum, SQLSyntaxTempl
                 return result;
             }, []).join(', ');
 
-            query.push(template()(tables));
+            queryParts.push(template()(tables));
         }
     }
 
@@ -53,7 +63,7 @@ export const newSqlQueryBuilder = (templates:Map<QuerySyntaxEnum, SQLSyntaxTempl
             lastKey.properties.push(...values);
         } else {
             if (keychain.length === 0 && templates.has(QuerySyntaxEnum.Where)) {
-                query.push(templates.get(QuerySyntaxEnum.Where)()());
+                queryParts.push(templates.get(QuerySyntaxEnum.Where)()());
             }
             keychain = [...values];
         }
@@ -92,7 +102,7 @@ export const newSqlQueryBuilder = (templates:Map<QuerySyntaxEnum, SQLSyntaxTempl
         const values: string[] = items.reduce(prepareInsertValuesList, []);
 
         if (templates.has(type)) {
-            query.push(templates.get(type)()(keys, values));
+            queryParts.push(templates.get(type)()(keys, values));
         }
     }
 
@@ -103,7 +113,7 @@ export const newSqlQueryBuilder = (templates:Map<QuerySyntaxEnum, SQLSyntaxTempl
         if (previousType === QuerySyntaxEnum.Insert) {
             const tables: string[] = params.reduce(parseTablesToStrings, []);
             if (templates.has(type)) {
-                query.splice(-1, 0, templates.get(type)()(tables));
+                queryParts.splice(-1, 0, templates.get(type)()(tables));
             }
         }
     }
@@ -111,7 +121,7 @@ export const newSqlQueryBuilder = (templates:Map<QuerySyntaxEnum, SQLSyntaxTempl
     const handleUpdate = (type: QuerySyntaxEnum, params: any[]): void => {
         const tables: string[] = params.reduce(parseTablesToStrings, []);
         if (templates.has(type)) {
-            query.push(templates.get(type)()(tables));
+            queryParts.push(templates.get(type)()(tables));
         }
     }
 
@@ -123,39 +133,39 @@ export const newSqlQueryBuilder = (templates:Map<QuerySyntaxEnum, SQLSyntaxTempl
         if (properties) {
             const values: string[] = Object.keys(properties).reduce(prepareSetValues(properties), []);
             if (templates.has(type)) {
-                query.push(templates.get(type)()([values]));
+                queryParts.push(templates.get(type)()([values]));
             }
         }
     }
 
     const handleIn = (type: QuerySyntaxEnum, params: any[]) => {
         const values: any[] = params.reduce(escapeValues, [])
-        query.push(...useTemplate({ type, values }));
+        queryParts.push(...useTemplate({ type, values }));
     }
 
     const handleUnion = (type: QuerySyntaxEnum, params: any[]) => {
         for (const param of params) {
-            query.push(...useTemplate({ type, values: [param] }));
+            queryParts.push(...useTemplate({ type, values: [param] }));
         }
     }
 
     const handleJoin = (type: QuerySyntaxEnum, params: any[]): void => {
         const tables: string[] = params.reduce(parseTablesToStrings, []);
         if (templates.has(type)) {
-            query.push(templates.get(type)()(tables));
+            queryParts.push(templates.get(type)()(tables));
         }
     }
 
     const handleOn = (type: QuerySyntaxEnum, params: any[]): void => {
         const keys: string[] = params.reduce((list: string[], prop: Property) => (list.push(parsePropertyToString(prop)), list), []);
         if (templates.has(type)) {
-            query.push(templates.get(type)()(...keys));
+            queryParts.push(templates.get(type)()(...keys));
         }
     }
 
     const handleUsing = (type: QuerySyntaxEnum, params: any[]): void => {
         if (templates.has(type)) {
-            query.push(templates.get(type)()(parsePropertyToString(params[0])));
+            queryParts.push(templates.get(type)()(parsePropertyToString(params[0])));
         }
     }
 
@@ -165,7 +175,7 @@ export const newSqlQueryBuilder = (templates:Map<QuerySyntaxEnum, SQLSyntaxTempl
             keychain.push(newLogicalOperatorScope(type));
         } else {
             if (templates.has(type)) {
-                query.push(templates.get(type)()());
+                queryParts.push(templates.get(type)()());
             }
         }
     }
@@ -235,14 +245,14 @@ export const newSqlQueryBuilder = (templates:Map<QuerySyntaxEnum, SQLSyntaxTempl
 
         if (isMultiValuedCondition(type, params)) {
             const values: PropertyOrLogicalOperatorScope[] = params.reduce(mergePropertiesWithLogicalAnd, []);
-            query.push(keychain.reduce(handleMultiValuedCondition(type, isNegation, values), []));
+            queryParts.push(keychain.reduce(handleMultiValuedCondition(type, isNegation, values), []));
         } else {
-            query.push(keychain.reduce(handleSingleValuedCondition(type, isNegation, params), []));
+            queryParts.push(keychain.reduce(handleSingleValuedCondition(type, isNegation, params), []));
         }
     }
 
     const defaultHandle = (type: QuerySyntaxEnum, params: any[]) => {
-        query.push(...useTemplate({ type, values: params }));
+        queryParts.push(...useTemplate({ type, values: params }));
     }
 
     const buildQuery = (query:string[], current:any):string[] => {
@@ -256,7 +266,7 @@ export const newSqlQueryBuilder = (templates:Map<QuerySyntaxEnum, SQLSyntaxTempl
 
     const handles = new Map<QuerySyntaxEnum, QueryBuilderHandle>([
         [QuerySyntaxEnum.From, handleFrom],
-        [QuerySyntaxEnum.Select, handleSelect],
+        [QuerySyntaxEnum.Select, handlePrimary(handleSelect)],
         [QuerySyntaxEnum.Where, handleWhere],
         [QuerySyntaxEnum.EQ, handleCondition],
         [QuerySyntaxEnum.LT, handleCondition],
@@ -268,9 +278,9 @@ export const newSqlQueryBuilder = (templates:Map<QuerySyntaxEnum, SQLSyntaxTempl
         [QuerySyntaxEnum.Or, handleLogicalOperator],
         [QuerySyntaxEnum.OpenParentheses, defaultHandle],
         [QuerySyntaxEnum.CloseParentheses, defaultHandle],
-        [QuerySyntaxEnum.Delete, defaultHandle],
-        [QuerySyntaxEnum.Insert, handleInsert],
-        [QuerySyntaxEnum.Update, handleUpdate],
+        [QuerySyntaxEnum.Delete, handlePrimary(defaultHandle)],
+        [QuerySyntaxEnum.Insert, handlePrimary(handleInsert)],
+        [QuerySyntaxEnum.Update, handlePrimary(handleUpdate)],
         [QuerySyntaxEnum.To, handleTo],
         [QuerySyntaxEnum.Set, handleSet],
         [QuerySyntaxEnum.Exists, defaultHandle],
@@ -289,7 +299,7 @@ export const newSqlQueryBuilder = (templates:Map<QuerySyntaxEnum, SQLSyntaxTempl
         [QuerySyntaxEnum.Limit, defaultHandle],
     ]);
 
-    const builder: ISqlQueryBuilder = {
+    const builder: ISQLQueryBuilder = {
         with: (type: QuerySyntaxEnum, params: any[]): void => {
             const handle = handles.get(type);
             if (validators.has(type)) {
@@ -300,7 +310,10 @@ export const newSqlQueryBuilder = (templates:Map<QuerySyntaxEnum, SQLSyntaxTempl
             }
             history.push(type);
         },
-        build: (): string => query.reduce(buildQuery, []).join(' ')
+        build: (): SQLQuery => {
+            query.body = queryParts.reduce(buildQuery, []).join(' ');
+            return query;
+        }
     }
     return builder;
 }

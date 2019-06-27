@@ -22,3 +22,4 @@ export type SQLSyntaxTemplate = (data?:SQLSyntaxTemplateData) => (...values:any[
 export type LogicalOperatorHandleData = {operator:QuerySyntaxEnum, condition:QuerySyntaxEnum, negation:boolean, properties:PropertyOrLogicalOperatorScope[], values:any[]}
 export type QueryBuilderHandle = (type:QuerySyntaxEnum, params:any[]) => void
 export type UseTemplateData = {type: QuerySyntaxEnum, negation?: boolean, property?: Property, values?: any}
+export type SQLQuery = { type:QuerySyntaxEnum, body:string };
