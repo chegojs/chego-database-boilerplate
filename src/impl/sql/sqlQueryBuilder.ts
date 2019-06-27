@@ -1,9 +1,9 @@
 import { SQLQuery } from './../../api/types';
 import { ISQLQueryBuilder } from '../../api/interfaces';
 import { SQLSyntaxTemplate, LogicalOperatorHandleData, QueryBuilderHandle, UseTemplateData } from '../../api/types';
-import { QuerySyntaxEnum, PropertyOrLogicalOperatorScope, Property, Fn, Obj, Table } from "@chego/chego-api";
+import { QuerySyntaxEnum, PropertyOrLogicalOperatorScope, Property, Fn, Obj, Table, FunctionData } from "@chego/chego-api";
 import { parsePropertyToString, parseTableToString, escapeValue } from '../utils';
-import { mergePropertiesWithLogicalAnd, isLogicalOperatorScope, newLogicalOperatorScope } from '@chego/chego-tools';
+import { mergePropertiesWithLogicalAnd, isLogicalOperatorScope, newLogicalOperatorScope, isMySQLFunction } from '@chego/chego-tools';
 import { validators } from '../validators';
 
 export const newSqlQueryBuilder = (templates:Map<QuerySyntaxEnum, SQLSyntaxTemplate>): ISQLQueryBuilder => {
@@ -21,12 +21,11 @@ export const newSqlQueryBuilder = (templates:Map<QuerySyntaxEnum, SQLSyntaxTempl
 
     const handleSelect = (type: QuerySyntaxEnum, params: any[]): void => {
         const template: SQLSyntaxTemplate = templates.get(QuerySyntaxEnum.Select);
-        
         if (template) {
             const selection: string = (params.length === 0)
                 ? '*'
-                : params.reduce((result: string[], current: Property) => {
-                    const key = parsePropertyToString(current, false);
+                : params.reduce((result: string[], current: FunctionData | Property) => {
+                    const key = parsePropertyToString(isMySQLFunction(current) ? current.param : current, false);
                     result.push(current.alias ? `${key} AS ${current.alias}` : key)
                     return result;
                 }, []).join(', ');
