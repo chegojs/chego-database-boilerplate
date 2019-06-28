@@ -47,3 +47,7 @@ export interface ISQLQueryBuilder {
     with(type:QuerySyntaxEnum, params:any[]):void;
     build():SQLQuery;
 }
+
+export interface ISelectionbuilder {
+    build(params:any[]):string;
+}

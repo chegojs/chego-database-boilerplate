@@ -1,46 +1,23 @@
 import { SQLQuery } from './../../api/types';
-import { ISQLQueryBuilder } from '../../api/interfaces';
+import { ISQLQueryBuilder, ISelectionbuilder } from '../../api/interfaces';
 import { SQLSyntaxTemplate, LogicalOperatorHandleData, QueryBuilderHandle, UseTemplateData } from '../../api/types';
-import { QuerySyntaxEnum, PropertyOrLogicalOperatorScope, Property, Fn, Obj, Table, FunctionData } from "@chego/chego-api";
+import { QuerySyntaxEnum, PropertyOrLogicalOperatorScope, Property, Fn, Obj, Table } from "@chego/chego-api";
 import { parsePropertyToString, parseTableToString, escapeValue } from '../utils';
-import { mergePropertiesWithLogicalAnd, isLogicalOperatorScope, newLogicalOperatorScope, isMySQLFunction, isProperty } from '@chego/chego-tools';
+import { mergePropertiesWithLogicalAnd, isLogicalOperatorScope, newLogicalOperatorScope } from '@chego/chego-tools';
 import { validators } from '../validators';
+import { newSelectionBuilder } from './selectionParser';
 
-export const newSqlQueryBuilder = (templates:Map<QuerySyntaxEnum, SQLSyntaxTemplate>, functions:Map<QuerySyntaxEnum, Fn<string>>): ISQLQueryBuilder => {
+export const newSqlQueryBuilder = (templates: Map<QuerySyntaxEnum, SQLSyntaxTemplate>, functions: Map<QuerySyntaxEnum, Fn<string>>): ISQLQueryBuilder => {
     let keychain: PropertyOrLogicalOperatorScope[] = [];
-    const query:SQLQuery = { type:QuerySyntaxEnum.Undefined, body:'' };
+    const query: SQLQuery = { type: QuerySyntaxEnum.Undefined, body: '' };
     const queryParts: any[] = [];
     const history: QuerySyntaxEnum[] = [];
-
-    const handlePrimary = (handle:(type: QuerySyntaxEnum, params: any[]) => void) => (type: QuerySyntaxEnum, params: any[]) => {
-        if(queryParts.length === 0) {
+    const selectionBuilder:ISelectionbuilder = newSelectionBuilder(functions);
+    const handlePrimary = (handle: (type: QuerySyntaxEnum, params: any[]) => void) => (type: QuerySyntaxEnum, params: any[]) => {
+        if (queryParts.length === 0) {
             query.type = type;
         }
         handle(type, params);
-    }
-
-    const zzz = (current:any) => {
-        if(isProperty(current)) {
-            return parsePropertyToString(current);
-        } else if (isMySQLFunction(current)) {
-            const functionTemplate: Fn<string> = functions.get(current.type);
-            const data:FunctionData = Object.assign({}, { alias: current.alias, type: current.type }, { param: zzz(current.param) });
-            const alias:string = data.alias !== data.param ? `AS "${data.alias}"` : null;
-            return functionTemplate(data.param, alias)
-        } else if (Array.isArray(current)) {
-            return current.reduce((list:any[],current) => {
-                list.push(zzz(current));
-                return list;
-            }, [])
-        } else if (typeof current === 'object') {
-            const res:any = {};
-            for(const key of Object.keys(current)) {
-                Object.assign(res, { [key]: zzz(current[key]) });
-            }
-            return res;
-        } else {
-            return current;
-        }
     }
 
     const handleSelect = (type: QuerySyntaxEnum, params: any[]): void => {
@@ -48,11 +25,7 @@ export const newSqlQueryBuilder = (templates:Map<QuerySyntaxEnum, SQLSyntaxTempl
         if (template) {
             const selection: string = (params.length === 0)
                 ? '*'
-                : params.reduce((list:any[], current:any) => {
-                    list.push(zzz(current));
-                    return list;
-                },[]).join(', ');
-            console.log('SELECTION', selection)
+                : selectionBuilder.build(params);
             queryParts.push(template()(selection));
         }
     }
@@ -202,8 +175,8 @@ export const newSqlQueryBuilder = (templates:Map<QuerySyntaxEnum, SQLSyntaxTempl
         }
     }
 
-    const injectOperator = (operator:string) => (result: string[], condition: string, i:number): string[] => {
-        if(i > 0) {
+    const injectOperator = (operator: string) => (result: string[], condition: string, i: number): string[] => {
+        if (i > 0) {
             result.push(operator);
         }
         result.push(condition);
@@ -212,8 +185,8 @@ export const newSqlQueryBuilder = (templates:Map<QuerySyntaxEnum, SQLSyntaxTempl
 
     const handleLogicalOperatorScope = (data: LogicalOperatorHandleData): string[] => {
         const conditionHandle: Fn<any> = isMultiValuedCondition(data.condition, data.values) ? handleMultiValuedCondition : handleSingleValuedCondition;
-        const conditions:any[] = data.properties.reduce(conditionHandle(data.condition, data.negation, data.values), []);
-        const operatorTemplate:string = templates.get(data.operator)()();
+        const conditions: any[] = data.properties.reduce(conditionHandle(data.condition, data.negation, data.values), []);
+        const operatorTemplate: string = templates.get(data.operator)()();
         return conditions.reduce(injectOperator(operatorTemplate), []);
     }
 
@@ -277,8 +250,8 @@ export const newSqlQueryBuilder = (templates:Map<QuerySyntaxEnum, SQLSyntaxTempl
         queryParts.push(...useTemplate({ type, values: params }));
     }
 
-    const buildQuery = (query:string[], current:any):string[] => {
-        if(Array.isArray(current)) {
+    const buildQuery = (query: string[], current: any): string[] => {
+        if (Array.isArray(current)) {
             query.push(...current.reduce(buildQuery, []));
         } else {
             query.push(current);
@@ -334,7 +307,6 @@ export const newSqlQueryBuilder = (templates:Map<QuerySyntaxEnum, SQLSyntaxTempl
         },
         build: (): SQLQuery => {
             query.body = queryParts.reduce(buildQuery, []).join(' ');
-            console.log('SQLL', query.body)
             return query;
         }
     }
