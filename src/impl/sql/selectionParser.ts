@@ -1,5 +1,5 @@
 import { QuerySyntaxEnum, FunctionData, Fn } from '@chego/chego-api';
-import { isProperty, isMySQLFunction } from '@chego/chego-tools';
+import { isProperty, isMySQLFunction, isAlias } from '@chego/chego-tools';
 import { parsePropertyToString } from '../utils';
 import { ISelectionbuilder } from '../../api/interfaces';
 export const newSelectionBuilder = (functions: Map<QuerySyntaxEnum, Fn<string>>): ISelectionbuilder => {
@@ -20,7 +20,10 @@ export const newSelectionBuilder = (functions: Map<QuerySyntaxEnum, Fn<string>>)
     }
 
     const parseToSelection = (current: any) => {
-        if (isProperty(current)) {
+        if(isAlias(current)) {
+            const key:string = parsePropertyToString(current);
+            return `${key} AS "${current.alias}"`;
+        } else if (isProperty(current)) {
             return parsePropertyToString(current);
         } else if (isMySQLFunction(current)) {
             return parseFunctionToSelection(current);
