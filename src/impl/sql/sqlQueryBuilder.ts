@@ -1,14 +1,14 @@
 import { SQLQuery } from './../../api/types';
 import { ISQLQueryBuilder, ISelectionbuilder } from '../../api/interfaces';
 import { SQLSyntaxTemplate, LogicalOperatorHandleData, QueryBuilderHandle, UseTemplateData } from '../../api/types';
-import { QuerySyntaxEnum, PropertyOrLogicalOperatorScope, Property, Fn, Obj, Table } from "@chego/chego-api";
+import { QuerySyntaxEnum, ScopeContent, Property, Fn, Obj, Table } from "@chego/chego-api";
 import { parsePropertyToString, parseTableToString, escapeValue } from '../utils';
 import { mergePropertiesWithLogicalAnd, isLogicalOperatorScope, newLogicalOperatorScope } from '@chego/chego-tools';
 import { validators } from '../validators';
 import { newSelectionBuilder } from './selectionParser';
 
 export const newSqlQueryBuilder = (templates: Map<QuerySyntaxEnum, SQLSyntaxTemplate>, functions: Map<QuerySyntaxEnum, Fn<string>>): ISQLQueryBuilder => {
-    let keychain: PropertyOrLogicalOperatorScope[] = [];
+    let keychain: ScopeContent[] = [];
     const query: SQLQuery = { type: QuerySyntaxEnum.Undefined, body: '' };
     const queryParts: any[] = [];
     const history: QuerySyntaxEnum[] = [];
@@ -46,12 +46,12 @@ export const newSqlQueryBuilder = (templates: Map<QuerySyntaxEnum, SQLSyntaxTemp
     const handleWhere = (type: QuerySyntaxEnum, params: any[]): void => {
         const previousType: QuerySyntaxEnum = history[history.length - 1];
         const penultimateType: QuerySyntaxEnum = history[history.length - 2];
-        const values: PropertyOrLogicalOperatorScope[] = params.reduce(mergePropertiesWithLogicalAnd, [])
+        const values: ScopeContent[] = params.reduce(mergePropertiesWithLogicalAnd, [])
         if (
             (previousType === QuerySyntaxEnum.And || previousType === QuerySyntaxEnum.Or)
             && penultimateType === QuerySyntaxEnum.Where
         ) {
-            const lastKey: PropertyOrLogicalOperatorScope = keychain[keychain.length - 1];
+            const lastKey: ScopeContent = keychain[keychain.length - 1];
             if (!isLogicalOperatorScope(lastKey)) {
                 throw new Error(`Key ${lastKey} should be LogialOperatorScope type!`)
             }
@@ -191,14 +191,14 @@ export const newSqlQueryBuilder = (templates: Map<QuerySyntaxEnum, SQLSyntaxTemp
     }
 
     const useTemplate = ({ type, negation, property, values }: UseTemplateData): string[] => {
-        const key: string = property ? parsePropertyToString(property, true) : null;
+        const key: string = property ? parsePropertyToString(<Property>property, true) : null;
         return (templates.has(type))
             ? [templates.get(type)({ negation, property: key })(...values)]
             : [];
     }
 
     const handleMultiValuedCondition = (type: QuerySyntaxEnum, negation: boolean, values: any[]) =>
-        (result: any[], key: PropertyOrLogicalOperatorScope): string[] => {
+        (result: any[], key: ScopeContent): string[] => {
             if (isLogicalOperatorScope(key)) {
                 result.push(handleLogicalOperatorScope({ operator: key.type, condition: type, negation, properties: key.properties, values }));
             } else {
@@ -206,7 +206,7 @@ export const newSqlQueryBuilder = (templates: Map<QuerySyntaxEnum, SQLSyntaxTemp
                     if (isLogicalOperatorScope(value)) {
                         result.push(handleLogicalOperatorScope({ operator: value.type, condition: type, negation, properties: [key], values: value.properties }));
                     } else {
-                        result.push(...useTemplate({ type, negation, property: key, values: [escapeValue(parsePropertyToString(value))] }));
+                        result.push(...useTemplate({ type, negation, property: <Property>key, values: [escapeValue(parsePropertyToString(value))] }));
                     }
                 });
             }
@@ -216,7 +216,7 @@ export const newSqlQueryBuilder = (templates: Map<QuerySyntaxEnum, SQLSyntaxTemp
     const escapeValues = (list: any[], value: any) => (list.push(escapeValue(value)), list);
 
     const handleSingleValuedCondition = (type: QuerySyntaxEnum, negation: boolean, values: any[]) =>
-        (parts: string[], key: PropertyOrLogicalOperatorScope): string[] => {
+        (parts: string[], key: ScopeContent): string[] => {
             if (isLogicalOperatorScope(key)) {
                 parts.push(...handleLogicalOperatorScope({ operator: key.type, condition: type, negation, properties: key.properties, values }));
             } else {
@@ -239,7 +239,7 @@ export const newSqlQueryBuilder = (templates: Map<QuerySyntaxEnum, SQLSyntaxTemp
         const isNegation: boolean = previousType === QuerySyntaxEnum.Not;
 
         if (isMultiValuedCondition(type, params)) {
-            const values: PropertyOrLogicalOperatorScope[] = params.reduce(mergePropertiesWithLogicalAnd, []);
+            const values: ScopeContent[] = params.reduce(mergePropertiesWithLogicalAnd, []);
             queryParts.push(keychain.reduce(handleMultiValuedCondition(type, isNegation, values), []));
         } else {
             queryParts.push(keychain.reduce(handleSingleValuedCondition(type, isNegation, params), []));

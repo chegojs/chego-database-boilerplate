@@ -1,7 +1,6 @@
-import { IQuery, QuerySyntaxEnum, Fn } from '@chego/chego-api';
+import { IQuery, Fn } from '@chego/chego-api';
 import { withValidator } from '@chego/chego-tools';
 import { ISqlQueriesExecutor } from '../../api/interfaces';
-import { SQLSyntaxTemplate } from '../../api/types';
 
 export const newSqlExecutor = (): ISqlQueriesExecutor => {
     let pTransactionsHandle: Fn<Promise<any>>;

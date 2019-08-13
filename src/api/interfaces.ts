@@ -1,5 +1,5 @@
 import { QuerySyntaxEnum, IQueryResult, Table, Limit, SortingData, FunctionData, Property, IQuery, Fn } from '@chego/chego-api';
-import { Join, QueryPipelinesMap, Union, Expressions, SQLSyntaxTemplate, SQLQuery } from './types';
+import { Join, QueryPipelinesMap, Union, Expressions, SQLQuery } from './types';
 
 export interface IConditionsBuilder {
     add(type: QuerySyntaxEnum,  ...values: any[]): void;

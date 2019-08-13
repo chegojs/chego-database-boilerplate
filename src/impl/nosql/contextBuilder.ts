@@ -1,5 +1,5 @@
 import { JoinType, Union } from '../../api/types';
-import { PropertyOrLogicalOperatorScope, QuerySyntaxEnum, Fn, Table, AnyButFunction, SortingData, IQueryResult, FunctionData, Property } from '@chego/chego-api';
+import { ScopeContent, QuerySyntaxEnum, Fn, Table, AnyButFunction, SortingData, IQueryResult, FunctionData, Property } from '@chego/chego-api';
 import { IQueryContext, IQueryContextBuilder, IJoinBuilder, IConditionsBuilder } from '../../api/interfaces';
 import { newQueryContext } from './queryContext';
 import { combineReducers, mergePropertiesWithLogicalAnd, isLogicalOperatorScope, isProperty, isMySQLFunction, isAliasString, newTable, isAlias, newSortingData, parseStringToProperty, newLimit, isObject } from '@chego/chego-tools';
@@ -54,7 +54,7 @@ const ifEmptyTableSetDefault = (defaultTable: Table) => (list: any[], data: any)
     return list.concat(data);
 }
 
-const ifLogicalOperatorScopeThenParseItsKeys = (defaultTable: Table) => (list: PropertyOrLogicalOperatorScope[], data: PropertyOrLogicalOperatorScope) => {
+const ifLogicalOperatorScopeThenParseItsKeys = (defaultTable: Table) => (list: ScopeContent[], data: ScopeContent) => {
     if (isLogicalOperatorScope(data)) {
         data.properties.reduce(
             combineReducers(
@@ -158,7 +158,7 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
 
     const handleKeychain = (type: QuerySyntaxEnum) => (...args: any[]): void => {
         const defaultTable: Table = queryContext.tables[0];
-        const keys: PropertyOrLogicalOperatorScope[] = args.reduce(
+        const keys: ScopeContent[] = args.reduce(
             combineReducers(
                 ifEmptyTableSetDefault(defaultTable),
                 ifLogicalOperatorScopeThenParseItsKeys(defaultTable),

@@ -50,7 +50,8 @@ export const newJoinBuilder = (type:JoinType, tableA:Table, tableB:Table): IJoin
     return builder;
 }
 
-export const newExpression = (type: QuerySyntaxEnum, not: boolean, property: Property, value: any): Expression => ({ type, not, value, property });
+export const newExpression = (type: QuerySyntaxEnum, not: boolean, property: Property, value: any, custom:Fn<any>): Expression => 
+    ({ type, not, value, property, custom });
 
 export const newExpressionScope = (type: QuerySyntaxEnum, expressions: Expressions[]): ExpressionScope => ({ type, expressions });
 

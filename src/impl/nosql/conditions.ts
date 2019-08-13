@@ -1,5 +1,6 @@
-import { PropertyOrLogicalOperatorScope, QuerySyntaxEnum, Fn } from '@chego/chego-api';
-import { isLogicalOperatorScope, newLogicalOperatorScope } from '@chego/chego-tools';
+import { Keychain, KeychainScope, Expression } from './../../api/types';
+import { QuerySyntaxEnum, Fn, Property, ScopeContent } from '@chego/chego-api';
+import { isLogicalOperatorScope, newLogicalOperatorScope, isCustomCondition } from '@chego/chego-tools';
 import { IConditionsBuilder } from '../../api/interfaces';
 import { Expressions, ExpressionScope } from '../../api/types';
 import { newExpressionScope, newExpression } from '../utils';
@@ -16,22 +17,19 @@ const parseValue = (value: any) => {
 export const newConditionsBuilder = (history: QuerySyntaxEnum[]): IConditionsBuilder => {
     const expressions: Expressions[] = [];
     let root: Expressions[] = expressions;
-    let keychain: PropertyOrLogicalOperatorScope[] = [];
+    let keychain: Keychain[] = [];
     let negation: boolean = false;
     let scopePointer: ExpressionScope;
     let followingScopePointer: ExpressionScope;
     let previousScopePointer: ExpressionScope;
 
-    const handleKeychain = (type: QuerySyntaxEnum) => (...keys: PropertyOrLogicalOperatorScope[]): void => {
+    const handleKeychain = (type: QuerySyntaxEnum) => (...keys: Keychain[]): void => {
         const lastType: QuerySyntaxEnum = history[history.length - 1];
         const penultimateType: QuerySyntaxEnum = history[history.length - 2];
 
         if (isAndOr(lastType) && penultimateType === type) {
-            const lastKey: PropertyOrLogicalOperatorScope = keychain[keychain.length - 1];
-            if (!isLogicalOperatorScope(lastKey)) {
-                throw new Error(`Key ${lastKey} should be LogialOperatorScope type!`)
-            }
-            lastKey.properties.push(...keys);
+            const lastKey: Keychain = keychain[keychain.length - 1];
+            (<KeychainScope>lastKey).properties.push(...keys);
         } else {
             keychain = [...keys];
         }
@@ -58,26 +56,34 @@ export const newConditionsBuilder = (history: QuerySyntaxEnum[]): IConditionsBui
                 scopePointer.expressions = [scope];
             }
         }
-    } 
+    }
 
-    const keychainToExpressions = (type: QuerySyntaxEnum, value: any) => (result: Expressions[], key: PropertyOrLogicalOperatorScope): Expressions[] => {
+    const buildExpression = (type: QuerySyntaxEnum, key: Keychain, value: any): Expression =>
+        isCustomCondition(key)
+            ? newExpression(type, negation, null, parseValue(value), key.condition)
+            : newExpression(type, negation, <Property>key, parseValue(value), null);
+
+    const buildExpressionScope = (type: QuerySyntaxEnum, input: ScopeContent[], reducer: Fn<Expressions[]>) => {
+        const list = input.reduce(reducer, []);
+        const scope = newExpressionScope(type, list);
+        followingScopePointer = scope;
+        return scope;
+    }
+
+    const keychainToExpressions = (type: QuerySyntaxEnum, value: any) => (result: Expressions[], key: Keychain): Expressions[] => {
         if (isLogicalOperatorScope(key)) {
-            const list = key.properties.reduce(keychainToExpressions(type, value), []);
-            const scope = newExpressionScope(key.type, list);
-            followingScopePointer = scope;
+            const scope: ExpressionScope = buildExpressionScope(key.type, key.properties, keychainToExpressions(type, value))
             result.push(scope);
         } else {
-            result.push(newExpression(type, negation, key, parseValue(value)));
+            result.push(buildExpression(type, key, value));
         }
         return result;
     }
 
-    const valuesToExpressions = (type: QuerySyntaxEnum, keychain: PropertyOrLogicalOperatorScope[]) => (result: Expressions[], value: any): Expressions[] => {
+    const valuesToExpressions = (type: QuerySyntaxEnum, keychain: Keychain[]) => (result: Expressions[], value: any): Expressions[] => {
         const expressions: Expressions = [];
         if (isLogicalOperatorScope(value)) {
-            value.properties.reduce(valuesToExpressions(type, keychain), expressions);
-            const scope = newExpressionScope(value.type, expressions);
-            followingScopePointer = scope;
+            const scope: ExpressionScope = buildExpressionScope(value.type, value.properties, valuesToExpressions(type, keychain))
             result.push(scope);
         } else {
             keychain.reduce(keychainToExpressions(type, value), expressions);
@@ -105,7 +111,7 @@ export const newConditionsBuilder = (history: QuerySyntaxEnum[]): IConditionsBui
     }
 
     const closeParentheses = () => {
-        if(previousScopePointer) {
+        if (previousScopePointer) {
             previousScopePointer.expressions.push(root);
         } else {
             expressions.push(root);
