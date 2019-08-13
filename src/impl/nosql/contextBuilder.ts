@@ -2,15 +2,15 @@ import { JoinType, Union } from '../../api/types';
 import { ScopeContent, QuerySyntaxEnum, Fn, Table, AnyButFunction, SortingData, IQueryResult, FunctionData, Property } from '@chego/chego-api';
 import { IQueryContext, IQueryContextBuilder, IJoinBuilder, IConditionsBuilder } from '../../api/interfaces';
 import { newQueryContext } from './queryContext';
-import { combineReducers, mergePropertiesWithLogicalAnd, isLogicalOperatorScope, isProperty, isMySQLFunction, isAliasString, newTable, isAlias, newSortingData, parseStringToProperty, newLimit, isObject } from '@chego/chego-tools';
-import { parseStringToSortingOrderEnum, newJoinBuilder, newUnion, newBetweenData } from '../utils';
+import { combineReducers, mergePropertiesWithLogicalAnd, isLogicalOperatorScope, isProperty, isMySQLFunction, isAliasString, newTable, isAlias, newSortingData, parseStringToProperty, newLimit, isObject, newBetween, isCustomCondition } from '@chego/chego-tools';
+import { parseStringToSortingOrderEnum, newJoinBuilder, newUnion } from '../utils';
 import { newConditionsBuilder } from './conditions';
 
-const appendTempProperties = (list:Property[], data:any):Property[] => {
-    if(isProperty(data)) {
+const appendTempProperties = (list: Property[], data: any): Property[] => {
+    if (isProperty(data)) {
         list.push(data);
     } else {
-        if(isObject(data)) {
+        if (isObject(data)) {
             Object.values(data).reduce(appendTempProperties, list);
         }
     }
@@ -48,9 +48,9 @@ const ifAliasThenParseToTable = (tables: Table[], table: any) => (isAlias(table)
     : tables.concat(table);
 
 const ifEmptyTableSetDefault = (defaultTable: Table) => (list: any[], data: any) => {
-    if(isProperty(data) && !data.table) {
-            data.table = defaultTable;
-        }
+    if ((isProperty(data) || isCustomCondition(data)) && !data.table) {
+        data.table = defaultTable;
+    }
     return list.concat(data);
 }
 
@@ -180,7 +180,7 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
     }
 
     const handleBetween = (...args: any[]): void => {
-        conditionsBuilder.add(QuerySyntaxEnum.Between, newBetweenData(args[0], args[1]));
+        conditionsBuilder.add(QuerySyntaxEnum.Between, newBetween(args[0], args[1]));
     }
 
     const handleEQ = (...args: any[]): void => {

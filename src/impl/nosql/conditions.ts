@@ -1,8 +1,7 @@
-import { Keychain, KeychainScope, Expression } from './../../api/types';
 import { QuerySyntaxEnum, Fn, Property, ScopeContent } from '@chego/chego-api';
 import { isLogicalOperatorScope, newLogicalOperatorScope, isCustomCondition } from '@chego/chego-tools';
 import { IConditionsBuilder } from '../../api/interfaces';
-import { Expressions, ExpressionScope } from '../../api/types';
+import { Expressions, ExpressionScope, Keychain, KeychainScope, Expression } from '../../api/types';
 import { newExpressionScope, newExpression } from '../utils';
 
 const isAndOr = (type: QuerySyntaxEnum): boolean => type === QuerySyntaxEnum.And || type === QuerySyntaxEnum.Or;
@@ -60,7 +59,7 @@ export const newConditionsBuilder = (history: QuerySyntaxEnum[]): IConditionsBui
 
     const buildExpression = (type: QuerySyntaxEnum, key: Keychain, value: any): Expression =>
         isCustomCondition(key)
-            ? newExpression(type, negation, null, parseValue(value), key.condition)
+            ? newExpression(type, negation, null, parseValue(value), key)
             : newExpression(type, negation, <Property>key, parseValue(value), null);
 
     const buildExpressionScope = (type: QuerySyntaxEnum, input: ScopeContent[], reducer: Fn<Expressions[]>) => {
