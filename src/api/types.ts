@@ -6,6 +6,7 @@ export type DataMap = Map<string, Row[]>;
 export type JoinType = QuerySyntaxEnum.Join | QuerySyntaxEnum.FullJoin | QuerySyntaxEnum.LeftJoin | QuerySyntaxEnum.RightJoin;
 export type Join = { type:JoinType, propertyA:Property, propertyB:Property };
 export type Union = { data:IQueryResult, distinct:boolean };
+export type BetweenData = { min:number, max:number };
 export type FormulaRegEx = { pattern:RegExp, replacer: string }
 export type QueryPipeline = (client:any, data:any) => Promise<any>;
 export type QueryPipelinesMap = Map<QuerySyntaxEnum, QueryPipeline>

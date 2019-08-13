@@ -1,4 +1,4 @@
-import { SQLQuery } from './../api/types';
+import { SQLQuery, BetweenData } from './../api/types';
 import { newProperty, isQueryScheme } from '@chego/chego-tools';
 import { DataMap, Row, Union, JoinType, Join, Expression, Expressions, ExpressionScope, SQLSyntaxTemplate } from '../api/types';
 import { SortingOrderEnum, IQueryResult, Property, Table, QuerySyntaxEnum, IQueryScheme, IQuerySchemeArray, IQuerySchemeElement, Fn } from '@chego/chego-api';
@@ -103,3 +103,5 @@ export const parseSchemeToSQL = (scheme: IQueryScheme, templates:Map<QuerySyntax
     });
     return queryBuilder.build();
 }
+
+export const newBetweenData = (min:number, max:number):BetweenData => ({min, max});

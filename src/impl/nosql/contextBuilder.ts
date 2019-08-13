@@ -3,7 +3,7 @@ import { ScopeContent, QuerySyntaxEnum, Fn, Table, AnyButFunction, SortingData, 
 import { IQueryContext, IQueryContextBuilder, IJoinBuilder, IConditionsBuilder } from '../../api/interfaces';
 import { newQueryContext } from './queryContext';
 import { combineReducers, mergePropertiesWithLogicalAnd, isLogicalOperatorScope, isProperty, isMySQLFunction, isAliasString, newTable, isAlias, newSortingData, parseStringToProperty, newLimit, isObject } from '@chego/chego-tools';
-import { parseStringToSortingOrderEnum, newJoinBuilder, newUnion } from '../utils';
+import { parseStringToSortingOrderEnum, newJoinBuilder, newUnion, newBetweenData } from '../utils';
 import { newConditionsBuilder } from './conditions';
 
 const appendTempProperties = (list:Property[], data:any):Property[] => {
@@ -180,7 +180,7 @@ export const newQueryContextBuilder = (): IQueryContextBuilder => {
     }
 
     const handleBetween = (...args: any[]): void => {
-        conditionsBuilder.add(QuerySyntaxEnum.Between, args);
+        conditionsBuilder.add(QuerySyntaxEnum.Between, newBetweenData(args[0], args[1]));
     }
 
     const handleEQ = (...args: any[]): void => {
